@@ -1,0 +1,7 @@
+.vagrant
+*/target/**
+target/**
+project/project/**
+*.log
+vagrant/roles/
+
