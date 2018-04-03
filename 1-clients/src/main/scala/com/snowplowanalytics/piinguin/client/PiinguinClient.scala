@@ -29,16 +29,11 @@ import scala.util.{Failure, Success}
 // Generated
 import com.snowplowanalytics.piinguin.server.generated.protocols.piinguin._
 
-object PiinguinClient {
-  type PiiRecord = com.snowplowanalytics.piinguin.server.generated.protocols.piinguin.PiiRecord
-}
-
 /**
  * Piinguin client implementation following the piinguing GRPC protocol
  * @param url the server URL
  */
 class PiinguinClient(url: URL)(implicit ec: ExecutionContext) {
-  import PiinguinClient._
 
   private val logger  = LoggerFactory.getLogger(classOf[PiinguinClient].getName)
   private val channel = ManagedChannelBuilder.forAddress(url.getHost, url.getPort).usePlaintext(true).build()
