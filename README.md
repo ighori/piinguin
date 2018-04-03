@@ -3,7 +3,7 @@
 Example run server:
 
 ```
-$ sbt "servers/run -p 8080"
+$ sbt "servers/run -p 8080 -t piinguin"
 
 ```
 

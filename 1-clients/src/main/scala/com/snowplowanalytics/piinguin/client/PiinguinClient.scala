@@ -50,7 +50,7 @@ class PiinguinClient(url: URL)(implicit ec: ExecutionContext) {
    * @param originalValue the original value for the record
    * @return a future for the execution that returns eitehr a failure message or a success message
    */
-  def createPiiRecord(modifiedValue: String, originalValue: String): Future[Either[FailureMessage, SuccessMessage]] = {
+  def createPiiRecord(modifiedValue: String, originalValue: String): Future[Either[String, String]] = {
     logger.debug(s"Sending single create record request for modifiedValue: $modifiedValue originalValue: originalValue")
     stub.createPiiRecord(CreatePiiRecordRequest(Some(PiiRecord(modifiedValue, originalValue)))).transform {
       case Success(ChangeRecordResponse(None)) => errSuccess("Failed to get a response")
@@ -65,7 +65,7 @@ class PiinguinClient(url: URL)(implicit ec: ExecutionContext) {
    * @param modifiedValue the modified value of the record
    * @return a future for the execution that returns eitehr a failure message or a success message
    */
-  def deletePiiRecord(modifiedValue: String): Future[Either[FailureMessage, SuccessMessage]] = {
+  def deletePiiRecord(modifiedValue: String): Future[Either[String, String]] = {
     logger.debug(s"Sending single delete record request for modifiedValue: $modifiedValue")
     stub.deletePiiRecord(DeletePiiRecordRequest(modifiedValue)).transform {
       case Success(ChangeRecordResponse(None)) => errSuccess("Failed to get a response")
@@ -82,7 +82,7 @@ class PiinguinClient(url: URL)(implicit ec: ExecutionContext) {
    * @return a future for the execution that returns eitehr a failure message or a pii record
    */
   def readPiiRecord(modifiedValue: String,
-                    basisForProcessing: LawfulBasisForProcessing): Future[Either[FailureMessage, PiiRecord]] = {
+                    basisForProcessing: LawfulBasisForProcessing): Future[Either[String, PiiRecord]] = {
     logger.debug(
       s"Sending single read record request for modifiedValue: $modifiedValue and basisForProcessing: $basisForProcessing")
     stub.readPiiRecord(ReadPiiRecordRequest(modifiedValue, basisForProcessing)).transform {
@@ -97,9 +97,9 @@ class PiinguinClient(url: URL)(implicit ec: ExecutionContext) {
    * @param kvPairs a list of key-value tuples where the key is the modifiedValue and the value is the originalValue
    * @return a future for the execution that returns either a failure message or a success message
    */
-  def createRecords(kvPairs: List[(String, String)]): List[Either[FailureMessage, SuccessMessage]] = {
+  def createRecords(kvPairs: List[(String, String)]): List[Either[String, String]] = {
     logger.info("Streaming create records started")
-    val responseStream = ListBuffer[Either[FailureMessage, SuccessMessage]]()
+    val responseStream = ListBuffer[Either[String, String]]()
 
     val responseObserver = new StreamObserver[ChangeRecordResponse] {
       override def onError(t: Throwable): Unit = responseStream += err(s"${t.getMessage}")
@@ -128,9 +128,9 @@ class PiinguinClient(url: URL)(implicit ec: ExecutionContext) {
    * @param keys a list of modifiedValues idientifying the records to be deleted
    * @return a future for the execution that returns either a failure message or a success message
    */
-  def deleteRecords(keys: List[String]): List[Either[FailureMessage, SuccessMessage]] = {
+  def deleteRecords(keys: List[String]): List[Either[String, String]] = {
     logger.info("Streaming delete records started")
-    val responseStream = ListBuffer[Either[FailureMessage, SuccessMessage]]()
+    val responseStream = ListBuffer[Either[String, String]]()
 
     val responseObserver = new StreamObserver[ChangeRecordResponse] {
       override def onError(t: Throwable): Unit = responseStream += err(s"${t.getMessage}")
@@ -158,9 +158,9 @@ class PiinguinClient(url: URL)(implicit ec: ExecutionContext) {
    * @param keys a list of tuples containgn the modifiedValues along with the lawful basis for processing value for each
    * @return a future for the execution that returns either a failure message or a success message
    */
-  def readRecords(keys: List[(String, LawfulBasisForProcessing)]): List[Either[FailureMessage, PiiRecord]] = {
+  def readRecords(keys: List[(String, LawfulBasisForProcessing)]): List[Either[String, PiiRecord]] = {
     logger.info("Streaming read records started")
-    val responseStream = ListBuffer[Either[FailureMessage, PiiRecord]]()
+    val responseStream = ListBuffer[Either[String, PiiRecord]]()
 
     val responseObserver = new StreamObserver[ReadPiiRecordResponse] {
       override def onError(t: Throwable): Unit = responseStream += err(s"${t.getMessage}")
@@ -189,9 +189,6 @@ class PiinguinClient(url: URL)(implicit ec: ExecutionContext) {
   private def okSuccess(msg: String)  = Success(ok(msg))
   private def errSuccess(msg: String) = Success(err(msg))
 
-  private def ok(msg: String)  = Right(SuccessMessage(msg))
-  private def err(msg: String) = Left(FailureMessage(msg))
+  private def ok(msg: String)  = Right(msg)
+  private def err(msg: String) = Left(msg)
 }
-
-case class SuccessMessage(message: String)
-case class FailureMessage(message: String)

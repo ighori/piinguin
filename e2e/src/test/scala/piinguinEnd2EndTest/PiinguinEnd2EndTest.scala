@@ -36,11 +36,9 @@ import com.snowplowanalytics.piinguin.server.Main
 
 // Client
 import com.snowplowanalytics.piinguin.client.PiinguinClient
-import com.snowplowanalytics.piinguin.client.SuccessMessage
 
 // From servers test
 import com.snowplowanalytics.piinguin.server.clients.{DynamoDBTestClient, DynamoDBTestUtils}
-
 
 class PiinguinEnd2EndTest extends WordSpec with CancelAfterFailure with BeforeAndAfterAll {
   import ExecutionContext.Implicits.global
@@ -55,7 +53,7 @@ class PiinguinEnd2EndTest extends WordSpec with CancelAfterFailure with BeforeAn
         val url            = new URL(s"http://localhost:$SERVER_PORT")
         val piinguinClient = new PiinguinClient(url)
         val result         = Await.result(piinguinClient.createPiiRecord("1234", "567"), 10 seconds)
-        result should be(Right(SuccessMessage("OK")))
+        result should be(Right("OK"))
       }
     }
   }
@@ -94,9 +92,9 @@ class PiinguinEnd2EndTest extends WordSpec with CancelAfterFailure with BeforeAn
    */
   override def beforeAll = {
     val client = DynamoDBTestClient.client
-    try { client.deleteTable(TEST_TABLE_NAME) } catch { case r:ResourceNotFoundException => {} } // Make sure that the table does not exist from
+    try { client.deleteTable(TEST_TABLE_NAME) } catch { case r: ResourceNotFoundException => {} } // Make sure that the table does not exist from
     DynamoDBTestUtils.createTable(client)(TEST_TABLE_NAME)('modifiedValue -> S)
-    val _      = Future { Main.main(Array("-p", s"$SERVER_PORT", "-t", TEST_TABLE_NAME, "--dynamo-test-endpoint")) }
+    val _ = Future { Main.main(Array("-p", s"$SERVER_PORT", "-t", TEST_TABLE_NAME, "--dynamo-test-endpoint")) }
   }
 
   /**
