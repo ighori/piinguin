@@ -15,51 +15,55 @@
 
 package piinguinEnd2EndTest
 
-// Specs2
-//import org.specs2._
-//import org.specs2.concurrent.ExecutionEnv
-//import org.specs2.matcher.FutureMatchers
-//import org.specs2.specification.AfterAll
-
-// Scalatest
-
 // Java
-import java.net.{InetSocketAddress, Socket}
+import java.net.{InetSocketAddress, Socket, URL}
 
 // Scalatest
-import org.scalatest.concurrent.AsyncCancelAfterFailure
-import org.scalatest.{AsyncWordSpec, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfterAll, CancelAfterFailure, WordSpec}
+import org.scalatest.Matchers._
 
 // DynamoDB
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType._
+import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException
+
+// Scala
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
+import scala.util.{Failure, Right, Success, Try}
 
 // Server main
 import com.snowplowanalytics.piinguin.server.Main
 
-// Scala
-import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
+// Client
+import com.snowplowanalytics.piinguin.client.PiinguinClient
+import com.snowplowanalytics.piinguin.client.SuccessMessage
 
 // From servers test
-import com.snowplowanalytics.piinguin.server.clients.DynamoDBTestClient
+import com.snowplowanalytics.piinguin.server.clients.{DynamoDBTestClient, DynamoDBTestUtils}
 
-class PiinguinEnd2EndTest extends AsyncWordSpec with AsyncCancelAfterFailure {
 
+class PiinguinEnd2EndTest extends WordSpec with CancelAfterFailure with BeforeAndAfterAll {
+  import ExecutionContext.Implicits.global
   val TEST_TABLE_NAME = "stuff"
   val SERVER_PORT     = 8080
   "Piinguin server" can {
     "start" should {
-      val server = Future { Main.main(Array("-p", s"$SERVER_PORT", "--dynamo-test-endpoint")) }
       "be reachable" in {
         assert(retryConnect(500L, 5) == true)
       }
-      "be reachable from client" in {
-        assert(true == true)
+      "be possible to create a record" in {
+        val url            = new URL(s"http://localhost:$SERVER_PORT")
+        val piinguinClient = new PiinguinClient(url)
+        val result         = Await.result(piinguinClient.createPiiRecord("1234", "567"), 10 seconds)
+        result should be(Right(SuccessMessage("OK")))
       }
     }
   }
 
-  def connect: Boolean =
+  /**
+   * This method is used to see if a connection is possible to the Piingiin Server
+   */
+  private def connect: Boolean =
     Try {
       val socket = new Socket()
       socket.connect(new InetSocketAddress("localhost", SERVER_PORT), 5)
@@ -69,7 +73,10 @@ class PiinguinEnd2EndTest extends AsyncWordSpec with AsyncCancelAfterFailure {
       case Failure(_) => false
     }
 
-  def retryConnect(delay: Long, retries: Int): Boolean = {
+  /**
+   * This retries the connection with the specified delay for the specified number of retires
+   */
+  private def retryConnect(delay: Long, retries: Int): Boolean = {
     var retriesCount = retries
     while (retriesCount > 0) {
       if (connect) {
@@ -82,14 +89,21 @@ class PiinguinEnd2EndTest extends AsyncWordSpec with AsyncCancelAfterFailure {
     false
   }
 
-  // Side-effecting check for dynamo (creates table)
-  def dynamoDBReady = {
+  /**
+   * Start the server and create the table before all tests
+   */
+  override def beforeAll = {
     val client = DynamoDBTestClient.client
-    DynamoDBTestClient.createTable(client)(TEST_TABLE_NAME)('modifiedValue -> S)
+    try { client.deleteTable(TEST_TABLE_NAME) } catch { case r:ResourceNotFoundException => {} } // Make sure that the table does not exist from
+    DynamoDBTestUtils.createTable(client)(TEST_TABLE_NAME)('modifiedValue -> S)
+    val _      = Future { Main.main(Array("-p", s"$SERVER_PORT", "-t", TEST_TABLE_NAME, "--dynamo-test-endpoint")) }
   }
-  // Clean-up
-  // override def afterAll = {
-  //   val client = DynamoDBTestClient.client
-  //   client.deleteTable(TEST_TABLE_NAME)
-  // }
+
+  /**
+   * Delete the table
+   */
+  override def afterAll = {
+    val client = DynamoDBTestClient.client
+    client.deleteTable(TEST_TABLE_NAME)
+  }
 }

@@ -31,8 +31,10 @@ import com.snowplowanalytics.piinguin.BuildInfo
  * Entry point (see scala.App)
  */
 object Main extends App {
+  implicit val ec              = ExecutionContext.global
   private val logger           = LoggerFactory.getLogger(classOf[PiinguinServer].getName)
   private val APPLICATION_NAME = "piinguin-server"
+
   private val configParser = new OptionParser[PiinguinServerConfig](APPLICATION_NAME) {
     head(APPLICATION_NAME, BuildInfo.version, BuildInfo.scalaVersion, BuildInfo.sbtVersion, BuildInfo.builtAtString)
     help("help").text("prints this help message")
@@ -41,18 +43,25 @@ object Main extends App {
       .required()
       .text("port number to bind server to")
       .action((x, c) => c.copy(port = x))
-    opt[Boolean]("dynamo-test-endpoint")
+    opt[String]('t', "table-name")
+      .required()
+      .text("the dynamodb table to use")
+      .action((x, c) => c.copy(tableName = x))
+    opt[Unit]("dynamo-test-endpoint")
       .text("Use the dynamoDB test endoint at http://localhost:8000 with dummy credentials (for testing)")
-      .action((x, c) => c.copy(dynamoTestEndPoint = x))
+      .action((_, c) => c.copy(dynamoTestEndPoint = true))
   }
+
   private val config = configParser.parse(args, PiinguinServerConfig()) match {
     case Some(config) => config
     case None         => sys.exit(1)
   }
-  implicit val ec = ExecutionContext.global
+
   logger.info(
     s"Starting $APPLICATION_NAME version: ${BuildInfo.version} built: ${BuildInfo.builtAtString} using scala: ${BuildInfo.scalaVersion} sbt: ${BuildInfo.sbtVersion}")
-  val server = new PiinguinServer(config.port, config.dynamoTestEndPoint)
+
+  val server = new PiinguinServer(config.port, config.tableName, config.dynamoTestEndPoint)
+
   server.start
   logger.info(s"Listening on port: ${config.port}")
   server.blockUntilShutdown

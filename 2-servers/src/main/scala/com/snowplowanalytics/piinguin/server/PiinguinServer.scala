@@ -29,8 +29,13 @@ import com.snowplowanalytics.piinguin.server.generated.protocols.piinguin.Piingu
 
 /**
  * GRPC Piinguin server
+ *
+ * @param port the port to listen to
+ * @param tableName the dynamoDB table name where to connect
+ * @param dynamoTestEndPoint whether to use the dynamodb test endpoint
  */
-class PiinguinServer(port: Int, dynamoTestEndPoint: Boolean)(implicit executionContext: ExecutionContext) { self =>
+class PiinguinServer(port: Int, tableName: String, dynamoTestEndPoint: Boolean)(
+  implicit executionContext: ExecutionContext) { self =>
 
   private val logger = LoggerFactory.getLogger(classOf[PiinguinServer].getName)
 
@@ -38,7 +43,7 @@ class PiinguinServer(port: Int, dynamoTestEndPoint: Boolean)(implicit executionC
   private val server: Server = ServerBuilder
     .forPort(port)
     .addService(
-      PiinguinGrpc.bindService(new PiinguinImpl(new DynamoDBClient(dynamoDbClient, "piinguin")), executionContext))
+      PiinguinGrpc.bindService(new PiinguinImpl(new DynamoDBClient(dynamoDbClient, tableName)), executionContext))
     .build
 
   def start(): Unit = {

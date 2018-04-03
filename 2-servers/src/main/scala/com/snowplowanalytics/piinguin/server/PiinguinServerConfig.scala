@@ -18,4 +18,4 @@ package com.snowplowanalytics.piinguin.server
 /**
  * Piinguin server configuration class
  */
-case class PiinguinServerConfig(port: Int = 8080, dynamoTestEndPoint: Boolean = false)
+case class PiinguinServerConfig(port: Int = 8080, tableName: String = "", dynamoTestEndPoint: Boolean = false)
